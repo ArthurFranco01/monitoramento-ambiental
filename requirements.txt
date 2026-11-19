@@ -1,0 +1,5 @@
+Flask
+Flask-SQLAlchemy
+paho-mqtt
+PyMySQL
+requests
