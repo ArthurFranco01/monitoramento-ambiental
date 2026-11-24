@@ -30,6 +30,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 mybd.init_app(app)
 
+with app.app_context():
+    mybd.create_all()
+
 
 @app.route('/')
 def index():
@@ -90,10 +93,45 @@ def alerta_chuva():
     return jsonify(calcular_alerta_chuva(minutos))
 
 
-if __name__ == '__main__':
-    with app.app_context():
-        mybd.create_all()
+@app.route('/seed-demo')
+def seed_demo():
+    """Popula o banco com 30 registros simulados para demonstração."""
+    from datetime import datetime, timedelta, timezone
+    from random import gauss
 
+    existente = Registro.query.first()
+    if existente:
+        return jsonify({'msg': 'Banco já possui dados', 'total': Registro.query.count()})
+
+    agora = datetime.now(timezone.utc)
+    temp, pressao, umidade, co2, p1, p2 = 24.0, 1013.0, 60.0, 420.0, 12.0, 10.0
+
+    for i in range(30):
+        tempo = agora - timedelta(minutes=4 * (29 - i))
+        progresso = i / 30
+        temp += gauss(0, 0.3) - 0.05 * progresso
+        pressao += gauss(0, 0.2) - 0.15
+        umidade += gauss(0, 0.5) + 0.3
+        co2 += gauss(0, 5)
+        p1 += gauss(0, 0.5)
+        p2 += gauss(0, 0.4)
+        umidade = max(30, min(99, umidade))
+        co2 = max(350, min(800, co2))
+        p1 = max(5, min(50, p1))
+        p2 = max(3, min(40, p2))
+
+        mybd.session.add(Registro(
+            temperature=round(temp, 2), pressure=round(pressao, 2),
+            altitude=760.0, humidity=round(umidade, 2),
+            CO2=round(co2, 2), particula1=round(p1, 2),
+            particula2=round(p2, 2), registro_tempo=tempo,
+        ))
+
+    mybd.session.commit()
+    return jsonify({'msg': 'Dados de demonstração inseridos', 'total': 30})
+
+
+if __name__ == '__main__':
     start_mqtt(app)
 
     port = int(os.environ.get("PORT", 8080))  # Azure define a porta automaticamente
