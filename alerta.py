@@ -13,11 +13,14 @@ ALERTA_ALTA_UMIDADE = float(os.environ.get('ALERTA_ALTA_UMIDADE', '5.0'))       
 ALERTA_UMIDADE_ABSOLUTA = float(os.environ.get('ALERTA_UMIDADE_ABSOLUTA', '90.0'))  # %
 
 
-def calcular_alerta_chuva(minutos=15):
+def calcular_alerta_chuva(minutos=15, local=None):
     """Compara a leitura mais antiga e a mais recente dentro da janela de tempo
     (relativa à leitura mais recente da própria caixinha, não ao relógio do
     servidor) e avalia se há indício de chuva iminente."""
-    referencia = mybd.session.query(mybd.func.max(Registro.registro_tempo)).scalar()
+    query_max = mybd.session.query(mybd.func.max(Registro.registro_tempo))
+    if local:
+        query_max = query_max.filter(Registro.local == local)
+    referencia = query_max.scalar()
 
     if referencia is None:
         return {
@@ -28,13 +31,14 @@ def calcular_alerta_chuva(minutos=15):
         }
 
     limite = referencia - timedelta(minutes=minutos)
-    registros = (
+    query = (
         Registro.query
         .filter(Registro.registro_tempo >= limite)
         .filter(Registro.registro_tempo <= referencia)
-        .order_by(Registro.registro_tempo.asc())
-        .all()
     )
+    if local:
+        query = query.filter(Registro.local == local)
+    registros = query.order_by(Registro.registro_tempo.asc()).all()
 
     if len(registros) < 2:
         return {

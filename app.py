@@ -1,3 +1,4 @@
+import csv
 import os
 
 from flask import Flask, jsonify, render_template, request
@@ -41,22 +42,30 @@ def index():
 
 @app.route('/dados')
 def dados():
-    """Últimos registros gravados pela caixinha. Use ?limit=N (padrão 50, máx 500)."""
+    """Últimos registros gravados pela caixinha. Use ?limit=N (padrão 50, máx 500) e ?local= para filtrar."""
     try:
         limit = min(int(request.args.get('limit', 50)), 500)
     except ValueError:
         limit = 50
 
-    registros = (
-        Registro.query.order_by(Registro.registro_tempo.desc()).limit(limit).all()
-    )
+    query = Registro.query
+    local = request.args.get('local')
+    if local:
+        query = query.filter(Registro.local == local)
+
+    registros = query.order_by(Registro.registro_tempo.desc()).limit(limit).all()
     return jsonify([r.to_dict() for r in registros])
 
 
 @app.route('/dados/ultimo')
 def ultimo_dado():
     """Leitura mais recente da caixinha (para conferir se a ingestão MQTT está funcionando)."""
-    registro = Registro.query.order_by(Registro.registro_tempo.desc()).first()
+    query = Registro.query
+    local = request.args.get('local')
+    if local:
+        query = query.filter(Registro.local == local)
+
+    registro = query.order_by(Registro.registro_tempo.desc()).first()
     if registro is None:
         return jsonify({'erro': 'nenhum registro encontrado'}), 404
     return jsonify(registro.to_dict())
@@ -90,45 +99,69 @@ def alerta_chuva():
     except ValueError:
         minutos = 15
 
-    return jsonify(calcular_alerta_chuva(minutos))
+    local = request.args.get('local')
+    return jsonify(calcular_alerta_chuva(minutos, local=local))
 
 
-@app.route('/seed-demo')
-def seed_demo():
-    """Popula o banco com 30 registros simulados para demonstração."""
-    from datetime import datetime, timedelta, timezone
-    from random import gauss
+@app.route('/locais')
+def locais():
+    """Lista os locais distintos presentes no banco."""
+    resultado = mybd.session.query(Registro.local).distinct().all()
+    nomes = sorted([r[0] for r in resultado if r[0] is not None])
+    return jsonify(nomes)
 
-    existente = Registro.query.first()
-    if existente:
-        return jsonify({'msg': 'Banco já possui dados', 'total': Registro.query.count()})
 
-    agora = datetime.now(timezone.utc)
-    temp, pressao, umidade, co2, p1, p2 = 24.0, 1013.0, 60.0, 420.0, 12.0, 10.0
+BASES_CSV = {
+    '01_biblioteca.csv': 'Biblioteca',
+    '02_sala_aula.csv': 'Sala de Aula',
+    '03_area_externa.csv': 'Area Externa',
+    '04_sala_servidores.csv': 'Sala de Servidores',
+}
 
-    for i in range(30):
-        tempo = agora - timedelta(minutes=4 * (29 - i))
-        progresso = i / 30
-        temp += gauss(0, 0.3) - 0.05 * progresso
-        pressao += gauss(0, 0.2) - 0.15
-        umidade += gauss(0, 0.5) + 0.3
-        co2 += gauss(0, 5)
-        p1 += gauss(0, 0.5)
-        p2 += gauss(0, 0.4)
-        umidade = max(30, min(99, umidade))
-        co2 = max(350, min(800, co2))
-        p1 = max(5, min(50, p1))
-        p2 = max(3, min(40, p2))
 
-        mybd.session.add(Registro(
-            temperature=round(temp, 2), pressure=round(pressao, 2),
-            altitude=760.0, humidity=round(umidade, 2),
-            CO2=round(co2, 2), particula1=round(p1, 2),
-            particula2=round(p2, 2), registro_tempo=tempo,
-        ))
+@app.route('/importar-bases')
+def importar_bases():
+    """Importa os CSVs da pasta bases/ para o banco. Recria a tabela para garantir schema atualizado."""
+    from datetime import datetime
 
-    mybd.session.commit()
-    return jsonify({'msg': 'Dados de demonstração inseridos', 'total': 30})
+    Registro.__table__.drop(mybd.engine, checkfirst=True)
+    Registro.__table__.create(mybd.engine, checkfirst=True)
+
+    pasta = os.path.join(os.path.dirname(__file__), 'bases')
+    total = 0
+
+    for arquivo, nome_local in BASES_CSV.items():
+        caminho = os.path.join(pasta, arquivo)
+        if not os.path.exists(caminho):
+            continue
+
+        lote = []
+        with open(caminho, newline='', encoding='utf-8') as f:
+            leitor = csv.DictReader(f)
+            for linha in leitor:
+                lote.append(Registro(
+                    local=nome_local,
+                    temperature=float(linha['temperatura']),
+                    pressure=float(linha['pressao']),
+                    altitude=float(linha['altitude']),
+                    humidity=float(linha['umidade']),
+                    CO2=float(linha['co2']),
+                    particula1=float(linha['particula1']),
+                    particula2=float(linha['particula2']),
+                    registro_tempo=datetime.strptime(linha['registro_tempo'], '%Y-%m-%d %H:%M:%S'),
+                ))
+                if len(lote) >= 2000:
+                    mybd.session.add_all(lote)
+                    mybd.session.commit()
+                    total += len(lote)
+                    lote = []
+
+        if lote:
+            mybd.session.add_all(lote)
+            mybd.session.commit()
+            total += len(lote)
+
+    return jsonify({'msg': f'Importados {total} registros de {len(BASES_CSV)} locais', 'total': total})
 
 
 if __name__ == '__main__':

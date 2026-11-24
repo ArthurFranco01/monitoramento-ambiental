@@ -7,8 +7,22 @@ var pollingAtivo = true;
 var timerPolling = null;
 var timerContador = null;
 var segundosDesdeUpdate = 0;
+var localAtual = "";
+
+function queryLocal() {
+    return localAtual ? "local=" + encodeURIComponent(localAtual) : "";
+}
+
+function urlComLocal(base, extraParams) {
+    var params = [];
+    if (extraParams) params.push(extraParams);
+    var q = queryLocal();
+    if (q) params.push(q);
+    return params.length ? base + "?" + params.join("&") : base;
+}
 
 document.addEventListener("DOMContentLoaded", function () {
+    carregarLocais();
     carregarUltimaLeitura();
     carregarAlerta();
     carregarGraficos();
@@ -17,7 +31,26 @@ document.addEventListener("DOMContentLoaded", function () {
     iniciarPolling();
 
     document.getElementById("btn-polling").addEventListener("click", togglePolling);
+    document.getElementById("select-local").addEventListener("change", function () {
+        localAtual = this.value;
+        executarPolling();
+    });
 });
+
+function carregarLocais() {
+    fetch("/locais")
+        .then(function (resp) { return resp.json(); })
+        .then(function (nomes) {
+            var sel = document.getElementById("select-local");
+            nomes.forEach(function (nome) {
+                var opt = document.createElement("option");
+                opt.value = nome;
+                opt.textContent = nome;
+                sel.appendChild(opt);
+            });
+        })
+        .catch(function () {});
+}
 
 /* ---- Formatacao ---- */
 
@@ -71,7 +104,7 @@ function atualizarCard(elementId, novoValor) {
 /* ---- Cards de indicadores ---- */
 
 function carregarUltimaLeitura() {
-    fetch("/dados/ultimo")
+    fetch(urlComLocal("/dados/ultimo"))
         .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
@@ -103,7 +136,7 @@ function carregarAlerta() {
     var titulo = document.getElementById("alerta-titulo");
     var lista = document.getElementById("alerta-motivos");
 
-    fetch("/alerta-chuva")
+    fetch(urlComLocal("/alerta-chuva"))
         .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
@@ -172,7 +205,7 @@ function opcoesBase(tituloY, temEixoDireito, tituloYDireito) {
 }
 
 function carregarGraficos() {
-    fetch("/dados?limit=50")
+    fetch(urlComLocal("/dados", "limit=50"))
         .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
@@ -227,7 +260,7 @@ function carregarGraficos() {
                         }
                     ]
                 },
-                options: opcoesBase("hPa", false)
+                options: opcoesBase("Pa", false)
             });
 
             chartQualidadeAr = new Chart(document.getElementById("grafico-qualidade-ar"), {
@@ -276,7 +309,7 @@ function carregarGraficos() {
 }
 
 function atualizarGraficos() {
-    fetch("/dados?limit=50")
+    fetch(urlComLocal("/dados", "limit=50"))
         .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
@@ -360,7 +393,7 @@ function buscarClimaExterno() {
 }
 
 function carregarComparativo() {
-    var promessaCaixinha = fetch("/dados/ultimo")
+    var promessaCaixinha = fetch(urlComLocal("/dados/ultimo"))
         .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
@@ -418,7 +451,7 @@ function carregarComparativo() {
 function carregarTabela() {
     var tbody = document.getElementById("tabela-body");
 
-    fetch("/dados?limit=20")
+    fetch(urlComLocal("/dados", "limit=20"))
         .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
@@ -427,7 +460,7 @@ function carregarTabela() {
             tbody.innerHTML = "";
 
             if (registros.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="msg-carregando">Nenhum registro encontrado.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="msg-carregando">Nenhum registro encontrado.</td></tr>';
                 return;
             }
 
@@ -435,6 +468,7 @@ function carregarTabela() {
                 var tr = document.createElement("tr");
                 tr.innerHTML =
                     "<td>" + formatarHorario(r.registro_tempo) + "</td>" +
+                    "<td>" + (r.local || "--") + "</td>" +
                     "<td>" + formatarValor(r.temperature) + "</td>" +
                     "<td>" + formatarValor(r.pressure) + "</td>" +
                     "<td>" + formatarValor(r.altitude) + "</td>" +

@@ -37,6 +37,43 @@ header h1 {
     margin-top: 0.3rem;
 }
 
+/* ---- Seletor de local ---- */
+
+.seletor-local {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+
+.seletor-local label {
+    color: #80cbc4;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.seletor-local select {
+    background: rgba(0,230,118,0.08);
+    border: 1px solid rgba(0,230,118,0.25);
+    color: #e0f2f1;
+    border-radius: 8px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+}
+
+.seletor-local select:focus {
+    border-color: #00e676;
+    box-shadow: 0 0 6px rgba(0,230,118,0.3);
+}
+
+.seletor-local select option {
+    background: #0a1628;
+    color: #e0f2f1;
+}
+
 /* ---- Status de atualizacao ---- */
 
 .status-atualizacao {

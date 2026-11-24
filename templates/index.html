@@ -11,6 +11,12 @@
     <header>
         <h1>Monitoramento Ambiental</h1>
         <p class="subtitle">Dados em tempo real dos sensores da caixinha</p>
+        <div class="seletor-local">
+            <label for="select-local">Local:</label>
+            <select id="select-local">
+                <option value="">Todos</option>
+            </select>
+        </div>
         <div class="status-atualizacao">
             <span id="status-texto">Atualizado agora</span>
             <button id="btn-polling" class="btn-polling" title="Pausar atualizacao">&#9208;</button>
@@ -40,7 +46,7 @@
                     <span class="card-icon">🔽</span>
                     <span class="card-label">Press&atilde;o</span>
                     <span class="card-valor" id="val-pressure">--</span>
-                    <span class="card-unidade">hPa</span>
+                    <span class="card-unidade">Pa</span>
                 </div>
                 <div class="card" id="card-humidity">
                     <span class="card-icon">💧</span>
@@ -134,7 +140,7 @@
                         <div class="comparativo-col">
                             <span class="comparativo-origem">Caixinha</span>
                             <span class="comparativo-valor" id="comp-press-caixinha">--</span>
-                            <span class="comparativo-unidade">hPa</span>
+                            <span class="comparativo-unidade">Pa</span>
                         </div>
                         <div class="comparativo-col">
                             <span class="comparativo-origem">Externo</span>
@@ -155,8 +161,9 @@
                     <thead>
                         <tr>
                             <th>Hor&aacute;rio</th>
+                            <th>Local</th>
                             <th>Temp (&deg;C)</th>
-                            <th>Press&atilde;o (hPa)</th>
+                            <th>Press&atilde;o (Pa)</th>
                             <th>Altitude (m)</th>
                             <th>Umidade (%)</th>
                             <th>CO&#8322; (ppm)</th>
@@ -166,7 +173,7 @@
                     </thead>
                     <tbody id="tabela-body">
                         <tr>
-                            <td colspan="8" class="msg-carregando">Carregando dados...</td>
+                            <td colspan="9" class="msg-carregando">Carregando dados...</td>
                         </tr>
                     </tbody>
                 </table>
