@@ -17,10 +17,13 @@ DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = os.environ.get('DB_PORT', '3306')
 DB_NAME = os.environ.get('DB_NAME', 'monitoramento')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+DATABASE_URL = os.environ.get(
     'DATABASE_URL',
     f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 )
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 mybd.init_app(app)
