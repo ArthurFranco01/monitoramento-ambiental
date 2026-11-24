@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 
 from models import mybd, Registro
 from mqtt import start_mqtt
@@ -28,7 +28,7 @@ mybd.init_app(app)
 
 @app.route('/')
 def index():
-    return {'status': 'ok'}
+    return render_template('dashboard.html')
 
 
 @app.route('/dados')

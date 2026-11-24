@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento Ambiental</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Monitoramento Ambiental</h1>
+        <p class="subtitle">Dados em tempo real dos sensores da caixinha</p>
+        <div class="status-atualizacao">
+            <span id="status-texto">Atualizado agora</span>
+            <button id="btn-polling" class="btn-polling" title="Pausar atualizacao">&#9208;</button>
+        </div>
+    </header>
+
+    <main>
+        <section id="alerta-section">
+            <div id="alerta-card" class="alerta-card alerta-carregando">
+                <div class="alerta-icon" id="alerta-icon">&#8987;</div>
+                <div class="alerta-texto">
+                    <h2 id="alerta-titulo">Carregando alerta...</h2>
+                    <ul id="alerta-motivos"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="cards-section">
+            <div class="cards-grid">
+                <div class="card" id="card-temperature">
+                    <span class="card-icon">🌡️</span>
+                    <span class="card-label">Temperatura</span>
+                    <span class="card-valor" id="val-temperature">--</span>
+                    <span class="card-unidade">&deg;C</span>
+                </div>
+                <div class="card" id="card-pressure">
+                    <span class="card-icon">🔽</span>
+                    <span class="card-label">Press&atilde;o</span>
+                    <span class="card-valor" id="val-pressure">--</span>
+                    <span class="card-unidade">hPa</span>
+                </div>
+                <div class="card" id="card-humidity">
+                    <span class="card-icon">💧</span>
+                    <span class="card-label">Umidade</span>
+                    <span class="card-valor" id="val-humidity">--</span>
+                    <span class="card-unidade">%</span>
+                </div>
+                <div class="card" id="card-co2">
+                    <span class="card-icon">🌫️</span>
+                    <span class="card-label">CO&#8322;</span>
+                    <span class="card-valor" id="val-co2">--</span>
+                    <span class="card-unidade">ppm</span>
+                </div>
+                <div class="card" id="card-particula1">
+                    <span class="card-icon">🔬</span>
+                    <span class="card-label">Part&iacute;cula 1</span>
+                    <span class="card-valor" id="val-particula1">--</span>
+                    <span class="card-unidade">&micro;g/m&sup3;</span>
+                </div>
+                <div class="card" id="card-particula2">
+                    <span class="card-icon">🧪</span>
+                    <span class="card-label">Part&iacute;cula 2</span>
+                    <span class="card-valor" id="val-particula2">--</span>
+                    <span class="card-unidade">&micro;g/m&sup3;</span>
+                </div>
+                <div class="card" id="card-altitude">
+                    <span class="card-icon">⛰️</span>
+                    <span class="card-label">Altitude</span>
+                    <span class="card-valor" id="val-altitude">--</span>
+                    <span class="card-unidade">m</span>
+                </div>
+            </div>
+            <p class="ultima-leitura">
+                &Uacute;ltima leitura: <span id="ultima-leitura-tempo">--</span>
+            </p>
+        </section>
+
+        <section id="graficos-section">
+            <h2>Tend&ecirc;ncias</h2>
+            <div class="graficos-grid">
+                <div class="grafico-container">
+                    <canvas id="grafico-temp-umidade"></canvas>
+                </div>
+                <div class="grafico-container">
+                    <canvas id="grafico-pressao"></canvas>
+                </div>
+                <div class="grafico-container">
+                    <canvas id="grafico-qualidade-ar"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="comparativo-section">
+            <h2>Comparativo: Caixinha vs Clima Externo</h2>
+            <div class="comparativo-grid">
+                <div class="comparativo-card">
+                    <span class="comparativo-label">Temperatura</span>
+                    <div class="comparativo-valores">
+                        <div class="comparativo-col">
+                            <span class="comparativo-origem">Caixinha</span>
+                            <span class="comparativo-valor" id="comp-temp-caixinha">--</span>
+                            <span class="comparativo-unidade">&deg;C</span>
+                        </div>
+                        <div class="comparativo-col">
+                            <span class="comparativo-origem">Externo</span>
+                            <span class="comparativo-valor" id="comp-temp-externo">--</span>
+                            <span class="comparativo-unidade">&deg;C</span>
+                        </div>
+                    </div>
+                    <span class="comparativo-delta" id="comp-temp-delta">--</span>
+                </div>
+                <div class="comparativo-card">
+                    <span class="comparativo-label">Umidade</span>
+                    <div class="comparativo-valores">
+                        <div class="comparativo-col">
+                            <span class="comparativo-origem">Caixinha</span>
+                            <span class="comparativo-valor" id="comp-umid-caixinha">--</span>
+                            <span class="comparativo-unidade">%</span>
+                        </div>
+                        <div class="comparativo-col">
+                            <span class="comparativo-origem">Externo</span>
+                            <span class="comparativo-valor" id="comp-umid-externo">--</span>
+                            <span class="comparativo-unidade">%</span>
+                        </div>
+                    </div>
+                    <span class="comparativo-delta" id="comp-umid-delta">--</span>
+                </div>
+                <div class="comparativo-card">
+                    <span class="comparativo-label">Press&atilde;o</span>
+                    <div class="comparativo-valores">
+                        <div class="comparativo-col">
+                            <span class="comparativo-origem">Caixinha</span>
+                            <span class="comparativo-valor" id="comp-press-caixinha">--</span>
+                            <span class="comparativo-unidade">hPa</span>
+                        </div>
+                        <div class="comparativo-col">
+                            <span class="comparativo-origem">Externo</span>
+                            <span class="comparativo-valor" id="comp-press-externo">--</span>
+                            <span class="comparativo-unidade">hPa</span>
+                        </div>
+                    </div>
+                    <span class="comparativo-delta" id="comp-press-delta">--</span>
+                </div>
+            </div>
+            <p class="comparativo-fonte" id="comparativo-fonte">Fonte externa: Open-Meteo</p>
+        </section>
+
+        <section id="tabela-section">
+            <h2>&Uacute;ltimos registros</h2>
+            <div class="tabela-container">
+                <table id="tabela-dados">
+                    <thead>
+                        <tr>
+                            <th>Hor&aacute;rio</th>
+                            <th>Temp (&deg;C)</th>
+                            <th>Press&atilde;o (hPa)</th>
+                            <th>Altitude (m)</th>
+                            <th>Umidade (%)</th>
+                            <th>CO&#8322; (ppm)</th>
+                            <th>Part. 1 (&micro;g/m&sup3;)</th>
+                            <th>Part. 2 (&micro;g/m&sup3;)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-body">
+                        <tr>
+                            <td colspan="8" class="msg-carregando">Carregando dados...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&#127807; Projeto Integrador &mdash; SENAI134 &mdash; Ci&ecirc;ncia de Dados &#127807;</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
