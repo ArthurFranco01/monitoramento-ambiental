@@ -22,7 +22,7 @@ def buscar_clima_externo():
     }
 
     try:
-        resposta = requests.get(CLIMA_URL, params=params, timeout=5)
+        resposta = requests.get(CLIMA_URL, params=params, timeout=15)
         resposta.raise_for_status()
     except requests.RequestException as e:
         print(f"Erro ao consultar API meteorológica externa: {e}")
