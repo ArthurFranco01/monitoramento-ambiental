@@ -339,57 +339,78 @@ function calcularDelta(valorCaixinha, valorExterno, deltaEl) {
     }
 }
 
-function carregarComparativo() {
-    fetch("/comparativo")
+function buscarClimaExterno() {
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=-23.6150&longitude=-46.5699&current=temperature_2m,relative_humidity_2m,surface_pressure&timezone=auto";
+    return fetch(url)
         .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
         })
         .then(function (dados) {
-            var cx = dados.caixinha;
-            var ext = dados.externo;
-
-            if (cx) {
-                document.getElementById("comp-temp-caixinha").textContent = formatarValor(cx.temperature);
-                document.getElementById("comp-umid-caixinha").textContent = formatarValor(cx.humidity);
-                document.getElementById("comp-press-caixinha").textContent = formatarValor(cx.pressure);
-            } else {
-                document.getElementById("comp-temp-caixinha").textContent = "Sem dados";
-                document.getElementById("comp-umid-caixinha").textContent = "Sem dados";
-                document.getElementById("comp-press-caixinha").textContent = "Sem dados";
-            }
-
-            if (ext) {
-                document.getElementById("comp-temp-externo").textContent = formatarValor(ext.temperatura);
-                document.getElementById("comp-umid-externo").textContent = formatarValor(ext.umidade);
-                document.getElementById("comp-press-externo").textContent = formatarValor(ext.pressao);
-
-                var fonteTexto = "Fonte: " + (ext.fonte || "Open-Meteo");
-                if (ext.horario) {
-                    fonteTexto += " — " + formatarHorario(ext.horario);
-                }
-                document.getElementById("comparativo-fonte").textContent = fonteTexto;
-            } else {
-                document.getElementById("comp-temp-externo").textContent = "Indisponível";
-                document.getElementById("comp-umid-externo").textContent = "Indisponível";
-                document.getElementById("comp-press-externo").textContent = "Indisponível";
-                document.getElementById("comparativo-fonte").textContent = "Fonte externa indisponível";
-            }
-
-            var cxTemp = cx ? cx.temperature : null;
-            var cxHum = cx ? cx.humidity : null;
-            var cxPress = cx ? cx.pressure : null;
-            var extTemp = ext ? ext.temperatura : null;
-            var extHum = ext ? ext.umidade : null;
-            var extPress = ext ? ext.pressao : null;
-
-            calcularDelta(cxTemp, extTemp, document.getElementById("comp-temp-delta"));
-            calcularDelta(cxHum, extHum, document.getElementById("comp-umid-delta"));
-            calcularDelta(cxPress, extPress, document.getElementById("comp-press-delta"));
+            var atual = dados.current || {};
+            return {
+                temperatura: atual.temperature_2m,
+                umidade: atual.relative_humidity_2m,
+                pressao: atual.surface_pressure,
+                horario: atual.time,
+                fonte: "Open-Meteo"
+            };
         })
-        .catch(function () {
-            // Falha silenciosa no polling — mantem comparativo anterior
-        });
+        .catch(function () { return null; });
+}
+
+function carregarComparativo() {
+    var promessaCaixinha = fetch("/dados/ultimo")
+        .then(function (resp) {
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+            return resp.json();
+        })
+        .catch(function () { return null; });
+
+    var promessaExterno = buscarClimaExterno();
+
+    Promise.all([promessaCaixinha, promessaExterno]).then(function (resultados) {
+        var cx = resultados[0];
+        var ext = resultados[1];
+
+        if (cx) {
+            document.getElementById("comp-temp-caixinha").textContent = formatarValor(cx.temperature);
+            document.getElementById("comp-umid-caixinha").textContent = formatarValor(cx.humidity);
+            document.getElementById("comp-press-caixinha").textContent = formatarValor(cx.pressure);
+        } else {
+            document.getElementById("comp-temp-caixinha").textContent = "Sem dados";
+            document.getElementById("comp-umid-caixinha").textContent = "Sem dados";
+            document.getElementById("comp-press-caixinha").textContent = "Sem dados";
+        }
+
+        if (ext) {
+            document.getElementById("comp-temp-externo").textContent = formatarValor(ext.temperatura);
+            document.getElementById("comp-umid-externo").textContent = formatarValor(ext.umidade);
+            document.getElementById("comp-press-externo").textContent = formatarValor(ext.pressao);
+
+            var fonteTexto = "Fonte: " + (ext.fonte || "Open-Meteo");
+            if (ext.horario) {
+                fonteTexto += " — " + formatarHorario(ext.horario);
+            }
+            document.getElementById("comparativo-fonte").textContent = fonteTexto;
+        } else {
+            document.getElementById("comp-temp-externo").textContent = "Indisponível";
+            document.getElementById("comp-umid-externo").textContent = "Indisponível";
+            document.getElementById("comp-press-externo").textContent = "Indisponível";
+            document.getElementById("comparativo-fonte").textContent = "Fonte externa indisponível";
+        }
+
+        var cxTemp = cx ? cx.temperature : null;
+        var cxHum = cx ? cx.humidity : null;
+        var cxPress = cx ? cx.pressure : null;
+        var extTemp = ext ? ext.temperatura : null;
+        var extHum = ext ? ext.umidade : null;
+        var extPress = ext ? ext.pressao : null;
+
+        calcularDelta(cxTemp, extTemp, document.getElementById("comp-temp-delta"));
+        calcularDelta(cxHum, extHum, document.getElementById("comp-umid-delta"));
+        calcularDelta(cxPress, extPress, document.getElementById("comp-press-delta"));
+    });
 }
 
 /* ---- Tabela ---- */
