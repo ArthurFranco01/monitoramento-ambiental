@@ -28,7 +28,7 @@ mybd.init_app(app)
 
 @app.route('/')
 def index():
-    return render_template('dashboard.html')
+    return render_template('index.html')
 
 
 @app.route('/dados')
